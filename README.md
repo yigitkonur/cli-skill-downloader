@@ -85,27 +85,21 @@ playbooks.com/skills/{owner}/{repo}/{skill}
 - **Clone once** — groups skills by repo so each repo is cloned only once
 - **Precise extraction** — only copies the specific skill directory, not the whole repo
 - **Smart discovery** — finds skills across 9+ common locations (`.claude/skills/`, `.agent/skills/`, `.cursor/skills/`, `plugins/*/skills/`, deeply nested paths, etc.)
-- **Root-level repos** — for repos that ARE a single skill, selectively copies `SKILL.md` + known subdirs, skipping repo metadata (`README.md`, `LICENSE`, `.github/`)
+- **Root-level repos** — for single-skill repos, copies everything except repo metadata (exclusion-based, not a hardcoded whitelist — any folder name works)
 - **Deduplicates** — same URL listed twice is only downloaded once
 
 ## What Gets Downloaded
 
-Each skill extracts **only** the files that belong to it:
+**Subdirectory skills** (most common): the entire skill directory is copied as-is.
 
-| File/Dir | Description |
-|----------|-------------|
-| `SKILL.md` | Main skill file (always present) |
-| `references/` | Reference documentation, guides |
-| `rules/` | Rule files for the skill |
-| `examples/` | Example code and documents |
-| `assets/` | Templates, configs, presets |
-| `scripts/` | Automation scripts |
-| `templates/` | Template files |
-| `checklists/` | Checklist documents |
-| `patterns/` | Pattern documentation |
-| `build/`, `setup/`, `workflows/` | Build and setup docs |
+**Root-level skills** (repo IS the skill): everything is copied **except** known repo metadata:
 
-**Not included:** `README.md`, `LICENSE`, `.github/`, `.git/`, other skills in the same repo.
+| Excluded | Items |
+|----------|-------|
+| Directories | `.git`, `.github`, `.gitlab`, `node_modules`, `.vscode`, `.idea` |
+| Files | `README.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitignore`, `.gitattributes`, `package.json`, lockfiles |
+
+Everything else — `SKILL.md`, `references/`, `rules/`, `examples/`, or any custom folder the skill author creates — is included automatically.
 
 ## Auto-Categorization
 

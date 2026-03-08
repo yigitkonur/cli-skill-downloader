@@ -67,19 +67,16 @@ ${BOLD}URL FORMAT${RESET}
   https://playbooks.com/skills/{owner}/{repo}/{skill-name}
 
 ${BOLD}WHAT GETS DOWNLOADED${RESET}
-  Only the specific skill directory is extracted:
-    SKILL.md              Main skill file (required)
-    references/           Reference documentation
-    rules/                Rule files
-    examples/             Example code/docs
-    assets/               Templates, configs
-    scripts/              Automation scripts
-    templates/            Template files
-    checklists/           Checklist files
-    patterns/             Pattern documentation
-    build/, setup/, workflows/  Build/setup docs
+  Subdirectory skills: the entire skill directory is copied.
+  Root-level skills:   everything except repo metadata is copied.
 
-  Repo-level files (README.md, LICENSE, .github/) are NOT included.
+  Excluded repo metadata:
+    .git, .github, .gitlab, node_modules, .vscode, .idea
+    README.md, LICENSE, CHANGELOG.md, CONTRIBUTING.md,
+    .gitignore, package.json, lockfiles
+
+  Everything else (SKILL.md, references/, rules/, examples/,
+  or any custom folder) is included automatically.
 
 ${BOLD}EXAMPLES${RESET}
   ${SCRIPT_NAME} https://playbooks.com/skills/mcollina/skills/typescript-magician
@@ -280,36 +277,39 @@ copy_skill() {
   mkdir -p "$dest"
 
   if [[ "$is_root" == "true" ]]; then
-    # Root-level skill: selective copy
-    # Always copy SKILL.md
-    cp "${source}/SKILL.md" "$dest/"
+    # Root-level skill: copy everything EXCEPT known repo metadata.
+    # This is an exclusion approach — any directory or file the skill
+    # author creates (guides/, snippets/, recipes/, etc.) is included
+    # automatically without needing to update a whitelist.
+    local exclude_dirs=".git .github .gitlab node_modules .vscode .idea"
+    local exclude_files="README.md LICENSE LICENSE.md CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md .gitignore .gitattributes package.json package-lock.json yarn.lock pnpm-lock.yaml bun.lockb"
 
-    # Copy known skill subdirectories
-    local skill_dirs=(
-      references rules examples assets scripts templates
-      checklists patterns build setup workflows
-    )
-    for subdir in "${skill_dirs[@]}"; do
-      if [[ -d "${source}/${subdir}" ]]; then
-        cp -r "${source}/${subdir}" "$dest/"
-      fi
-    done
-
-    # Copy other .md files that are skill content (not repo metadata)
-    local skip_files="README.md CHANGELOG.md LICENSE.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md"
-    for f in "${source}"/*.md; do
-      [[ ! -f "$f" ]] && continue
+    # Copy visible files and directories (skip excluded)
+    for f in "${source}"/*; do
+      [[ ! -e "$f" ]] && continue
       local fname
       fname=$(basename "$f")
-      [[ "$fname" == "SKILL.md" ]] && continue  # already copied
-      if ! echo "$skip_files" | grep -qw "$fname"; then
+      if [[ -d "$f" ]]; then
+        echo "$exclude_dirs" | grep -qw "$fname" && continue
+        cp -r "$f" "$dest/"
+      else
+        echo "$exclude_files" | grep -qw "$fname" && continue
         cp "$f" "$dest/"
       fi
     done
 
-    # Copy any .json metadata files (skill.json, metadata.json)
-    for f in "${source}"/*.json; do
-      [[ -f "$f" ]] && cp "$f" "$dest/"
+    # Copy dotfiles that aren't excluded (e.g. .editorconfig for skills)
+    for f in "${source}"/.*; do
+      [[ ! -e "$f" ]] && continue
+      local fname
+      fname=$(basename "$f")
+      [[ "$fname" == "." || "$fname" == ".." ]] && continue
+      echo "$exclude_dirs $exclude_files" | grep -qw "$fname" && continue
+      if [[ -d "$f" ]]; then
+        cp -r "$f" "$dest/"
+      else
+        cp "$f" "$dest/"
+      fi
     done
   else
     # Subdirectory skill: copy everything
