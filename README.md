@@ -7,6 +7,13 @@ Skills are structured markdown files (`SKILL.md` + references) hosted on GitHub 
 ## Install
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/skill-dl \
+  -o /usr/local/bin/skill-dl && chmod +x /usr/local/bin/skill-dl
+```
+
+Or clone the repo:
+
+```bash
 git clone https://github.com/yigitkonur/cli-skill-downloader.git
 cd cli-skill-downloader
 chmod +x skill-dl
@@ -21,8 +28,17 @@ sudo ln -sf "$(pwd)/skill-dl" /usr/local/bin/skill-dl
 # Download a single skill
 skill-dl https://playbooks.com/skills/mcollina/skills/typescript-magician
 
+# Download multiple skills inline
+skill-dl \
+  https://playbooks.com/skills/mcollina/skills/typescript-magician \
+  https://playbooks.com/skills/nickcrew/claude-cortex/typescript-advanced-patterns \
+  https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
+
 # Download from a file of URLs
 skill-dl urls.txt
+
+# Mix URLs and files
+skill-dl urls.txt https://playbooks.com/skills/inkeep/skills/typescript-sdk
 
 # Pipe URLs
 cat urls.txt | skill-dl -
@@ -158,23 +174,38 @@ skills-collection/
 ## Examples
 
 ```bash
-# Dry run to see what would be downloaded
-skill-dl urls.txt --dry-run
+# Download a single skill
+skill-dl https://playbooks.com/skills/mcollina/skills/typescript-magician
 
-# Download into a custom directory
+# Download multiple skills at once
+skill-dl \
+  https://playbooks.com/skills/mcollina/skills/typescript-magician \
+  https://playbooks.com/skills/jwynia/agent-skills/typescript-best-practices \
+  https://playbooks.com/skills/onmax/nuxt-skills/ts-library \
+  https://playbooks.com/skills/exploration-labs/typescript-code-review/typescript-code-review
+
+# From a file of URLs
 skill-dl urls.txt -o ~/projects/ai-skills
 
-# Force re-download everything
-skill-dl urls.txt --force
+# Mix files and inline URLs
+skill-dl urls.txt \
+  https://playbooks.com/skills/inkeep/skills/typescript-sdk \
+  https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
 
-# Put all skills in a single folder
-skill-dl urls.txt -c all-skills
+# Pipe from another command
+cat urls.txt | skill-dl -
+
+# Force all into one category folder
+skill-dl urls.txt -c my-typescript-skills
+
+# Dry run to preview
+skill-dl urls.txt --dry-run
+
+# Re-download everything (overwrite existing)
+skill-dl urls.txt --force
 
 # Verbose debug output
 skill-dl https://playbooks.com/skills/inkeep/skills/typescript-sdk -v
-
-# Combine multiple sources
-skill-dl skill1-url skill2-url more-urls.txt
 ```
 
 ## License

@@ -79,10 +79,32 @@ WHAT GETS DOWNLOADED
   or any custom folder) is included automatically.
 
 EXAMPLES
+  # Single skill
   ${SCRIPT_NAME} https://playbooks.com/skills/mcollina/skills/typescript-magician
+
+  # Multiple skills inline
+  ${SCRIPT_NAME} \\
+    https://playbooks.com/skills/mcollina/skills/typescript-magician \\
+    https://playbooks.com/skills/nickcrew/claude-cortex/typescript-advanced-patterns \\
+    https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
+
+  # From a file (one URL per line, # comments supported)
   ${SCRIPT_NAME} urls.txt -o ./my-skills
-  cat urls.txt | ${SCRIPT_NAME} - --category typescript
+
+  # Mix URLs and files
+  ${SCRIPT_NAME} urls.txt https://playbooks.com/skills/inkeep/skills/typescript-sdk
+
+  # Pipe from another command
+  cat urls.txt | ${SCRIPT_NAME} -
+
+  # Force all into one category folder
+  ${SCRIPT_NAME} urls.txt -c my-typescript-skills
+
+  # Dry run to preview what would be downloaded
   ${SCRIPT_NAME} urls.txt --dry-run
+
+  # Re-download everything (overwrite existing)
+  ${SCRIPT_NAME} urls.txt --force
 EOF
 }
 
@@ -106,7 +128,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ${#SOURCES[@]} -eq 0 ]]; then
-  error "No source provided. Run '${SCRIPT_NAME} --help' for usage."
+  error "No source provided."
+  echo "" >&2
+  show_help >&2
   exit 1
 fi
 
