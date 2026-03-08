@@ -1,0 +1,33 @@
+# TypeScript Skills Collection
+# Download with: skill-dl examples/typescript-skills.txt
+
+# Strict & Types
+https://playbooks.com/skills/omer-metin/skills-for-antigravity/typescript-strict
+https://playbooks.com/skills/flpbalada/my-opencode-config/typescript-advanced-types
+https://playbooks.com/skills/nickcrew/claude-cortex/typescript-advanced-patterns
+https://playbooks.com/skills/gracefullight/stock-checker/typescript-type-expert
+
+# Best Practices
+https://playbooks.com/skills/lobehub/lobehub/typescript
+https://playbooks.com/skills/academind/ai-config/clean-typescript
+https://playbooks.com/skills/jwynia/agent-skills/typescript-best-practices
+
+# Code Quality
+https://playbooks.com/skills/affaan-m/everything-claude-code/coding-standards
+https://playbooks.com/skills/forge-town/skills/check-try-catch
+https://playbooks.com/skills/vudovn/antigravity-kit/clean-code
+
+# Pro & Review
+https://playbooks.com/skills/mcollina/skills/typescript-magician
+https://playbooks.com/skills/exploration-labs/typescript-code-review/typescript-code-review
+
+# SDK & Libraries
+https://playbooks.com/skills/openrouterteam/agent-skills/typescript-sdk
+https://playbooks.com/skills/inkeep/skills/typescript-sdk
+
+# React + TypeScript
+https://playbooks.com/skills/madappgang/claude-code/react-typescript
+
+# Tooling & Setup
+https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
+https://playbooks.com/skills/ntcoding/claude-skillz/typescript-backend-project-setup
