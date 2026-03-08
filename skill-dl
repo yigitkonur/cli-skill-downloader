@@ -42,18 +42,18 @@ debug()   { [[ "$VERBOSE" == "true" ]] && echo -e "${DIM}[DBG]  ${*}${RESET}" >&
 
 # --- Help ---
 show_help() {
-  cat <<HELP
-${BOLD}skill-dl${RESET} v${VERSION} — Download skills from playbooks.com
+  cat <<EOF
+skill-dl v${VERSION} — Download skills from playbooks.com
 
-${BOLD}USAGE${RESET}
+USAGE
   ${SCRIPT_NAME} <source> [options]
 
-${BOLD}SOURCE${RESET} (required, one or more)
+SOURCE (required, one or more)
   <url>           Single playbooks.com URL
   <file>          Text file with one URL per line (# comments allowed)
   -               Read URLs from stdin (pipe-friendly)
 
-${BOLD}OPTIONS${RESET}
+OPTIONS
   -o, --output <dir>       Output directory (default: ./skills-collection)
   -c, --category <name>    Force all skills into this category folder
   --no-auto-category       Flat structure, no category folders
@@ -63,10 +63,10 @@ ${BOLD}OPTIONS${RESET}
   -h, --help               Show this help
   --version                Show version
 
-${BOLD}URL FORMAT${RESET}
+URL FORMAT
   https://playbooks.com/skills/{owner}/{repo}/{skill-name}
 
-${BOLD}WHAT GETS DOWNLOADED${RESET}
+WHAT GETS DOWNLOADED
   Subdirectory skills: the entire skill directory is copied.
   Root-level skills:   everything except repo metadata is copied.
 
@@ -78,13 +78,12 @@ ${BOLD}WHAT GETS DOWNLOADED${RESET}
   Everything else (SKILL.md, references/, rules/, examples/,
   or any custom folder) is included automatically.
 
-${BOLD}EXAMPLES${RESET}
+EXAMPLES
   ${SCRIPT_NAME} https://playbooks.com/skills/mcollina/skills/typescript-magician
   ${SCRIPT_NAME} urls.txt -o ./my-skills
   cat urls.txt | ${SCRIPT_NAME} - --category typescript
   ${SCRIPT_NAME} urls.txt --dry-run
-
-HELP
+EOF
 }
 
 # --- Parse arguments ---
