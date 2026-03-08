@@ -12,39 +12,33 @@
 # ==============================================================================
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 SCRIPT_NAME="$(basename "$0")"
 
 # --- Defaults ---
 OUTPUT_DIR="./skills-collection"
 CATEGORY=""
 AUTO_CATEGORIZE=true
-PARALLEL=4
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
 
-# --- Colors ---
+# --- Colors (disabled when piped) ---
 if [[ -t 1 ]]; then
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[0;33m'
-  BLUE='\033[0;34m'
-  CYAN='\033[0;36m'
-  BOLD='\033[1m'
-  DIM='\033[2m'
-  RESET='\033[0m'
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'
+  DIM='\033[2m'; RESET='\033[0m'
 else
-  RED='' GREEN='' YELLOW='' BLUE='' CYAN='' BOLD='' DIM='' RESET=''
+  RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; BOLD=''; DIM=''; RESET=''
 fi
 
-# --- Logging ---
-log()     { echo -e "${DIM}${*}${RESET}"; }
-info()    { echo -e "${BLUE}[INFO]${RESET} ${*}"; }
-success() { echo -e "${GREEN}[OK]${RESET}   ${*}"; }
-warn()    { echo -e "${YELLOW}[WARN]${RESET} ${*}"; }
+# --- Logging (all to stderr so stdout stays clean for data) ---
+log()     { echo -e "${DIM}${*}${RESET}" >&2; }
+info()    { echo -e "${BLUE}[INFO]${RESET} ${*}" >&2; }
+success() { echo -e "${GREEN}[OK]${RESET}   ${*}" >&2; }
+warn()    { echo -e "${YELLOW}[WARN]${RESET} ${*}" >&2; }
 error()   { echo -e "${RED}[ERR]${RESET}  ${*}" >&2; }
-debug()   { [[ "$VERBOSE" == "true" ]] && echo -e "${DIM}[DBG]  ${*}${RESET}"; }
+debug()   { [[ "$VERBOSE" == "true" ]] && echo -e "${DIM}[DBG]  ${*}${RESET}" >&2 || true; }
 
 # --- Help ---
 show_help() {
@@ -54,7 +48,7 @@ ${BOLD}skill-dl${RESET} v${VERSION} — Download skills from playbooks.com
 ${BOLD}USAGE${RESET}
   ${SCRIPT_NAME} <source> [options]
 
-${BOLD}SOURCE${RESET} (required, pick one)
+${BOLD}SOURCE${RESET} (required, one or more)
   <url>           Single playbooks.com URL
   <file>          Text file with one URL per line (# comments allowed)
   -               Read URLs from stdin (pipe-friendly)
@@ -62,58 +56,36 @@ ${BOLD}SOURCE${RESET} (required, pick one)
 ${BOLD}OPTIONS${RESET}
   -o, --output <dir>       Output directory (default: ./skills-collection)
   -c, --category <name>    Force all skills into this category folder
-                           (overrides auto-categorization)
-  --no-auto-category       Disable auto-categorization, use flat structure
-  -p, --parallel <n>       Max parallel git clones (default: 4)
+  --no-auto-category       Flat structure, no category folders
   -f, --force              Overwrite existing skill directories
-  --dry-run                Show what would be downloaded without doing it
-  -v, --verbose            Verbose output
+  --dry-run                Preview without downloading
+  -v, --verbose            Debug output
   -h, --help               Show this help
   --version                Show version
 
 ${BOLD}URL FORMAT${RESET}
   https://playbooks.com/skills/{owner}/{repo}/{skill-name}
 
-  Maps to GitHub:
-    Repository: github.com/{owner}/{repo}
-    Skill path: skills/{skill-name}/ (auto-discovered)
+${BOLD}WHAT GETS DOWNLOADED${RESET}
+  Only the specific skill directory is extracted:
+    SKILL.md              Main skill file (required)
+    references/           Reference documentation
+    rules/                Rule files
+    examples/             Example code/docs
+    assets/               Templates, configs
+    scripts/              Automation scripts
+    templates/            Template files
+    checklists/           Checklist files
+    patterns/             Pattern documentation
+    build/, setup/, workflows/  Build/setup docs
+
+  Repo-level files (README.md, LICENSE, .github/) are NOT included.
 
 ${BOLD}EXAMPLES${RESET}
-  # Download a single skill
   ${SCRIPT_NAME} https://playbooks.com/skills/mcollina/skills/typescript-magician
-
-  # Download from a file of URLs
   ${SCRIPT_NAME} urls.txt -o ./my-skills
-
-  # Pipe URLs
   cat urls.txt | ${SCRIPT_NAME} - --category typescript
-
-  # Force all into one category
-  ${SCRIPT_NAME} urls.txt -c "my-typescript-skills"
-
-  # Dry run to preview
   ${SCRIPT_NAME} urls.txt --dry-run
-
-${BOLD}AUTO-CATEGORIZATION${RESET}
-  When --category is not set, skills are auto-sorted into folders:
-    strict-and-types/       typescript-strict, advanced-types, type-expert, etc.
-    best-practices/         typescript, best-practices, expert, clean-typescript
-    code-quality/           coding-standards, clean-code, code-style
-    react-typescript/       react-typescript, react-*, nextjs-*
-    pro-and-review/         typescript-pro, reviewer, code-review, magician
-    sdk-and-libraries/      typescript-sdk, ts-library, typescript-v5
-    tooling-and-setup/      generator, setup, init, tdd-*, circular-dependency
-    general/                Everything else
-
-${BOLD}OUTPUT STRUCTURE${RESET}
-  skills-collection/
-  ├── best-practices/
-  │   └── mcollina--skills--typescript-magician/
-  │       ├── SKILL.md
-  │       └── rules/
-  │           ├── generics-basics.md
-  │           └── ...
-  └── ...
 
 HELP
 }
@@ -123,24 +95,22 @@ SOURCES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help)    show_help; exit 0 ;;
-    --version)    echo "skill-dl v${VERSION}"; exit 0 ;;
-    -o|--output)  OUTPUT_DIR="$2"; shift 2 ;;
-    -c|--category) CATEGORY="$2"; AUTO_CATEGORIZE=false; shift 2 ;;
+    -h|--help)         show_help; exit 0 ;;
+    --version)         echo "skill-dl v${VERSION}"; exit 0 ;;
+    -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
+    -c|--category)     CATEGORY="$2"; AUTO_CATEGORIZE=false; shift 2 ;;
     --no-auto-category) AUTO_CATEGORIZE=false; shift ;;
-    -p|--parallel) PARALLEL="$2"; shift 2 ;;
-    -f|--force)   FORCE=true; shift ;;
-    --dry-run)    DRY_RUN=true; shift ;;
-    -v|--verbose) VERBOSE=true; shift ;;
-    -)            SOURCES+=("-"); shift ;;
-    -*)           error "Unknown option: $1"; echo "Run '${SCRIPT_NAME} --help' for usage."; exit 1 ;;
-    *)            SOURCES+=("$1"); shift ;;
+    -f|--force)        FORCE=true; shift ;;
+    --dry-run)         DRY_RUN=true; shift ;;
+    -v|--verbose)      VERBOSE=true; shift ;;
+    -)                 SOURCES+=("-"); shift ;;
+    -*)                error "Unknown option: $1"; echo "Run '${SCRIPT_NAME} --help' for usage."; exit 1 ;;
+    *)                 SOURCES+=("$1"); shift ;;
   esac
 done
 
 if [[ ${#SOURCES[@]} -eq 0 ]]; then
-  error "No source provided."
-  echo "Run '${SCRIPT_NAME} --help' for usage."
+  error "No source provided. Run '${SCRIPT_NAME} --help' for usage."
   exit 1
 fi
 
@@ -149,23 +119,19 @@ URLS=()
 
 for source in "${SOURCES[@]}"; do
   if [[ "$source" == "-" ]]; then
-    # Read from stdin
     while IFS= read -r line || [[ -n "$line" ]]; do
-      line=$(echo "$line" | sed 's/#.*//' | xargs)  # strip comments and whitespace
+      line=$(echo "$line" | sed 's/#.*//' | xargs)
       [[ -n "$line" ]] && URLS+=("$line")
     done
   elif [[ -f "$source" ]]; then
-    # Read from file
     while IFS= read -r line || [[ -n "$line" ]]; do
       line=$(echo "$line" | sed 's/#.*//' | xargs)
       [[ -n "$line" ]] && URLS+=("$line")
     done < "$source"
   elif [[ "$source" =~ ^https?:// ]]; then
-    # Direct URL
     URLS+=("$source")
   else
-    error "Source not recognized: $source"
-    error "Expected a URL, file path, or '-' for stdin."
+    error "Source not recognized: $source (expected URL, file, or '-')"
     exit 1
   fi
 done
@@ -175,56 +141,39 @@ if [[ ${#URLS[@]} -eq 0 ]]; then
   exit 1
 fi
 
-# --- Parse playbooks URL into owner/repo/skill ---
-# Format: https://playbooks.com/skills/{owner}/{repo}/{skill}
+# --- Parse playbooks URL → owner/repo/skill ---
 parse_url() {
   local url="$1"
-  # Strip trailing slash
   url="${url%/}"
-  # Remove protocol and domain
   local path="${url#*playbooks.com/skills/}"
+  [[ "$path" == "$url" ]] && return 1
 
-  if [[ "$path" == "$url" ]]; then
-    echo ""
-    return 1
-  fi
-
-  # Should have at least 3 segments: owner/repo/skill
   local segments
   IFS='/' read -ra segments <<< "$path"
-  if [[ ${#segments[@]} -lt 3 ]]; then
-    echo ""
-    return 1
-  fi
+  [[ ${#segments[@]} -lt 3 ]] && return 1
 
   local owner="${segments[0]}"
   local repo="${segments[1]}"
-  # Skill name can contain slashes (remaining segments)
-  local skill="${segments[*]:2}"
-  skill="${skill// //}"  # join with nothing (shouldn't have spaces)
-  # Actually rejoin with /
+  local skill
   skill=$(IFS='/'; echo "${segments[*]:2}")
 
   echo "${owner}|${repo}|${skill}"
 }
 
-# --- Auto-categorize based on skill name ---
+# --- Auto-categorize by skill name ---
 categorize_skill() {
   local skill="$1"
+
+  if [[ -n "$CATEGORY" ]]; then
+    echo "$CATEGORY"; return
+  fi
+  if [[ "$AUTO_CATEGORIZE" == "false" ]]; then
+    echo ""; return
+  fi
+
   local name_lower
   name_lower=$(echo "$skill" | tr '[:upper:]' '[:lower:]')
 
-  if [[ -n "$CATEGORY" ]]; then
-    echo "$CATEGORY"
-    return
-  fi
-
-  if [[ "$AUTO_CATEGORIZE" == "false" ]]; then
-    echo ""
-    return
-  fi
-
-  # Match patterns (order matters — more specific first)
   case "$name_lower" in
     *react-typescript*|*react-ts*|*nextjs-typescript*|*next-ts*)
       echo "react-typescript" ;;
@@ -245,12 +194,21 @@ categorize_skill() {
   esac
 }
 
-# --- Find skill directory in a cloned repo ---
+# ==============================================================================
+# find_skill_dir — Precisely locate a skill directory inside a cloned repo.
+#
+# Strategy (in order):
+#   1. Try known paths where skills are commonly stored
+#   2. Search for SKILL.md where the PARENT DIRECTORY NAME exactly matches
+#      the skill name (prevents false matches from repo path)
+#   3. If the repo root has SKILL.md and no skills/ subdirectory, treat the
+#      repo itself as a single-skill repo (return special marker "ROOT")
+# ==============================================================================
 find_skill_dir() {
   local clone_dir="$1"
   local skill="$2"
 
-  # Try known paths in order of likelihood
+  # --- 1. Try known paths (require SKILL.md to exist) ---
   local paths=(
     "skills/${skill}"
     "${skill}"
@@ -264,117 +222,113 @@ find_skill_dir() {
   )
 
   for try_path in "${paths[@]}"; do
-    if [[ -d "${clone_dir}/${try_path}" ]]; then
+    if [[ -f "${clone_dir}/${try_path}/SKILL.md" ]]; then
+      debug "    Found at known path: ${try_path}/"
       echo "${clone_dir}/${try_path}"
       return 0
     fi
   done
 
-  # Fallback: recursive search for SKILL.md matching skill name
-  local found
-  found=$(find "$clone_dir" -name "SKILL.md" -path "*${skill}*" 2>/dev/null | head -1)
+  # --- 2. Search all SKILL.md files, match by parent dir name ---
+  local found=""
+  while IFS= read -r skill_md; do
+    local parent_dir
+    parent_dir=$(dirname "$skill_md")
+    local dir_name
+    dir_name=$(basename "$parent_dir")
+    if [[ "$dir_name" == "$skill" ]]; then
+      found="$parent_dir"
+      debug "    Found via search: ${parent_dir#$clone_dir/}"
+      break
+    fi
+  done < <(find "$clone_dir" -name "SKILL.md" -not -path "*/.git/*" 2>/dev/null)
+
   if [[ -n "$found" ]]; then
-    dirname "$found"
+    echo "$found"
+    return 0
+  fi
+
+  # --- 3. Root-level skill: repo itself IS the skill ---
+  if [[ -f "${clone_dir}/SKILL.md" ]]; then
+    debug "    Found at repo root (single-skill repo)"
+    echo "ROOT:${clone_dir}"
     return 0
   fi
 
   return 1
 }
 
-# --- Clone and extract a single skill ---
-process_skill() {
-  local url="$1"
-  local index="$2"
-  local total="$3"
+# ==============================================================================
+# copy_skill — Copy skill files from source to destination.
+#
+# For subdirectory skills: copies the entire directory.
+# For root-level skills: selectively copies SKILL.md + known skill subdirs,
+#   skipping repo metadata (README.md, LICENSE, .github/, etc.)
+# ==============================================================================
+copy_skill() {
+  local source="$1"
+  local dest="$2"
+  local is_root=false
 
-  # Parse URL
-  local parsed
-  parsed=$(parse_url "$url") || true
-  if [[ -z "$parsed" ]]; then
-    error "[${index}/${total}] Invalid URL: ${url}"
-    echo "FAIL|${url}|invalid URL format"
-    return
+  # Check if this is a root-level skill
+  if [[ "$source" == ROOT:* ]]; then
+    source="${source#ROOT:}"
+    is_root=true
   fi
 
-  IFS='|' read -r owner repo skill <<< "$parsed"
-  local category
-  category=$(categorize_skill "$skill")
-  local folder_name="${owner}--${repo}--${skill}"
+  [[ -d "$dest" ]] && rm -rf "$dest"
+  mkdir -p "$dest"
 
-  # Build destination path
-  local dest
-  if [[ -n "$category" ]]; then
-    dest="${OUTPUT_DIR}/${category}/${folder_name}"
+  if [[ "$is_root" == "true" ]]; then
+    # Root-level skill: selective copy
+    # Always copy SKILL.md
+    cp "${source}/SKILL.md" "$dest/"
+
+    # Copy known skill subdirectories
+    local skill_dirs=(
+      references rules examples assets scripts templates
+      checklists patterns build setup workflows
+    )
+    for subdir in "${skill_dirs[@]}"; do
+      if [[ -d "${source}/${subdir}" ]]; then
+        cp -r "${source}/${subdir}" "$dest/"
+      fi
+    done
+
+    # Copy other .md files that are skill content (not repo metadata)
+    local skip_files="README.md CHANGELOG.md LICENSE.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md"
+    for f in "${source}"/*.md; do
+      [[ ! -f "$f" ]] && continue
+      local fname
+      fname=$(basename "$f")
+      [[ "$fname" == "SKILL.md" ]] && continue  # already copied
+      if ! echo "$skip_files" | grep -qw "$fname"; then
+        cp "$f" "$dest/"
+      fi
+    done
+
+    # Copy any .json metadata files (skill.json, metadata.json)
+    for f in "${source}"/*.json; do
+      [[ -f "$f" ]] && cp "$f" "$dest/"
+    done
   else
-    dest="${OUTPUT_DIR}/${folder_name}"
+    # Subdirectory skill: copy everything
+    cp -r "${source}/." "$dest/"
   fi
 
-  # Dry run
-  if [[ "$DRY_RUN" == "true" ]]; then
-    info "[${index}/${total}] ${owner}/${repo}/${skill} → ${dest}"
-    echo "DRY|${url}|${dest}"
-    return
-  fi
+  # Always clean up git artifacts
+  rm -rf "${dest}/.git"
 
-  # Skip if exists and not forcing
-  if [[ -d "$dest" && "$FORCE" != "true" ]]; then
-    warn "[${index}/${total}] Already exists: ${folder_name} (use --force to overwrite)"
-    echo "SKIP|${url}|${dest}"
-    return
-  fi
-
-  info "[${index}/${total}] ${CYAN}${owner}/${repo}${RESET} → ${BOLD}${skill}${RESET}"
-  debug "  Category: ${category:-<flat>}"
-  debug "  Dest: ${dest}"
-
-  # Create temp dir for this clone
-  local temp_clone
-  temp_clone=$(mktemp -d)
-
-  # Shallow clone
-  if ! git clone --depth 1 --quiet "https://github.com/${owner}/${repo}.git" "$temp_clone" 2>/dev/null; then
-    error "  Could not clone github.com/${owner}/${repo}"
-    rm -rf "$temp_clone"
-    echo "FAIL|${url}|repo clone failed"
-    return
-  fi
-
-  debug "  Cloned ${owner}/${repo}"
-
-  # Find the skill directory
-  local skill_dir
-  if skill_dir=$(find_skill_dir "$temp_clone" "$skill"); then
-    # Clean and copy
-    [[ -d "$dest" ]] && rm -rf "$dest"
-    mkdir -p "$dest"
-    cp -r "${skill_dir}/." "$dest/"
-
-    # Remove any .git artifacts that might have been copied
-    rm -rf "${dest}/.git"
-
-    local file_count
-    file_count=$(find "$dest" -type f | wc -l | tr -d ' ')
-    success "  ${file_count} files → ${category:-<root>}/${folder_name}"
-    echo "OK|${url}|${dest}|${file_count}"
-  else
-    error "  Skill '${skill}' not found in ${owner}/${repo}"
-    # Show available skills for debugging
-    if [[ "$VERBOSE" == "true" && -d "${temp_clone}/skills" ]]; then
-      debug "  Available skills: $(ls "${temp_clone}/skills/" 2>/dev/null | tr '\n' ' ')"
-    fi
-    echo "FAIL|${url}|skill directory not found"
-  fi
-
-  # Cleanup
-  rm -rf "$temp_clone"
+  # Count and return
+  find "$dest" -type f | wc -l | tr -d ' '
 }
 
 # --- Main ---
 
-echo ""
-echo -e "${BOLD}skill-dl${RESET} v${VERSION}"
-echo -e "${DIM}Downloading ${#URLS[@]} skill(s) into: ${OUTPUT_DIR}${RESET}"
-echo ""
+echo "" >&2
+echo -e "${BOLD}skill-dl${RESET} v${VERSION}" >&2
+echo -e "${DIM}Downloading ${#URLS[@]} skill(s) into: ${OUTPUT_DIR}${RESET}" >&2
+echo "" >&2
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -395,21 +349,20 @@ if [[ ${#UNIQUE_URLS[@]} -ne ${#URLS[@]} ]]; then
   info "Deduplicated: ${#URLS[@]} → ${#UNIQUE_URLS[@]} unique URLs"
 fi
 
-# --- Group by repo for efficiency (clone each repo once) ---
-declare -A REPO_TO_SKILLS  # "owner/repo" → "skill1|cat1|url1 skill2|cat2|url2 ..."
-declare -a REPO_ORDER      # preserve insertion order
+# --- Group by repo (clone each repo only once) ---
+declare -A REPO_TO_SKILLS
+declare -a REPO_ORDER
 
 for url in "${UNIQUE_URLS[@]}"; do
   parsed=$(parse_url "$url") || true
   if [[ -z "$parsed" ]]; then
+    error "Invalid URL (skipped): $url"
     continue
   fi
   IFS='|' read -r owner repo skill <<< "$parsed"
   repo_key="${owner}/${repo}"
-
   category=$(categorize_skill "$skill")
   folder_name="${owner}--${repo}--${skill}"
-
   entry="${skill}|${category}|${url}|${folder_name}"
 
   if [[ -z "${REPO_TO_SKILLS[$repo_key]:-}" ]]; then
@@ -430,8 +383,6 @@ failed_list=()
 for repo_key in "${REPO_ORDER[@]}"; do
   owner=$(echo "$repo_key" | cut -d'/' -f1)
   repo=$(echo "$repo_key" | cut -d'/' -f2)
-
-  # Count skills in this repo
   skill_count=$(echo "${REPO_TO_SKILLS[$repo_key]}" | wc -l | tr -d ' ')
 
   if [[ "$DRY_RUN" != "true" ]]; then
@@ -483,55 +434,52 @@ for repo_key in "${REPO_ORDER[@]}"; do
 
     info "[${current}/${total}] ${CYAN}${skill}${RESET}"
 
-    # Find skill dir
+    # Find and copy skill
     local_skill_dir=""
     if local_skill_dir=$(find_skill_dir "$temp_clone" "$skill"); then
-      [[ -d "$dest" ]] && rm -rf "$dest"
-      mkdir -p "$dest"
-      cp -r "${local_skill_dir}/." "$dest/"
-      rm -rf "${dest}/.git"
-
-      file_count=$(find "$dest" -type f | wc -l | tr -d ' ')
+      file_count=$(copy_skill "$local_skill_dir" "$dest")
       success "  ${file_count} files → ${category:+${category}/}${folder_name}"
       ok_count=$((ok_count + 1))
     else
       error "  Not found in repo"
       fail_count=$((fail_count + 1))
       failed_list+=("${url}")
-      if [[ "$VERBOSE" == "true" && -d "${temp_clone}/skills" ]]; then
-        debug "  Available: $(ls "${temp_clone}/skills/" 2>/dev/null | head -10 | tr '\n' ' ')"
+      if [[ "$VERBOSE" == "true" ]]; then
+        # Show what skills actually exist in the repo
+        local avail=""
+        avail=$(find "$temp_clone" -name "SKILL.md" -not -path "*/.git/*" 2>/dev/null | while read -r f; do
+          basename "$(dirname "$f")"
+        done | sort -u | tr '\n' ' ')
+        [[ -n "$avail" ]] && debug "  Available skills: ${avail}"
       fi
     fi
 
   done <<< "${REPO_TO_SKILLS[$repo_key]}"
 
-  # Cleanup clone
   rm -rf "$temp_clone"
 done
 
 # --- Summary ---
-echo ""
-echo -e "${BOLD}━━━ Summary ━━━${RESET}"
-echo -e "  Total:   ${total}"
-[[ $ok_count -gt 0 ]]   && echo -e "  ${GREEN}Success: ${ok_count}${RESET}"
-[[ $skip_count -gt 0 ]] && echo -e "  ${YELLOW}Skipped: ${skip_count}${RESET}"
-[[ $fail_count -gt 0 ]] && echo -e "  ${RED}Failed:  ${fail_count}${RESET}"
+echo "" >&2
+echo -e "${BOLD}━━━ Summary ━━━${RESET}" >&2
+echo -e "  Total:   ${total}" >&2
+[[ $ok_count -gt 0 ]]   && echo -e "  ${GREEN}Success: ${ok_count}${RESET}" >&2
+[[ $skip_count -gt 0 ]] && echo -e "  ${YELLOW}Skipped: ${skip_count}${RESET}" >&2
+[[ $fail_count -gt 0 ]] && echo -e "  ${RED}Failed:  ${fail_count}${RESET}" >&2
 
 if [[ ${#failed_list[@]} -gt 0 ]]; then
-  echo ""
-  echo -e "${RED}Failed URLs:${RESET}"
+  echo "" >&2
+  echo -e "${RED}Failed URLs:${RESET}" >&2
   for f in "${failed_list[@]}"; do
-    echo "  $f"
+    echo "  $f" >&2
   done
 fi
 
 if [[ "$DRY_RUN" != "true" && $ok_count -gt 0 ]]; then
-  echo ""
-  echo -e "${DIM}Output: ${OUTPUT_DIR}${RESET}"
-  echo -e "${DIM}Size:   $(du -sh "$OUTPUT_DIR" 2>/dev/null | cut -f1)${RESET}"
+  echo "" >&2
+  echo -e "${DIM}Output: ${OUTPUT_DIR}${RESET}" >&2
+  echo -e "${DIM}Size:   $(du -sh "$OUTPUT_DIR" 2>/dev/null | cut -f1)${RESET}" >&2
 fi
 
-echo ""
-
-# Exit code: 0 if all succeeded, 1 if any failed
+echo "" >&2
 [[ $fail_count -eq 0 ]]
