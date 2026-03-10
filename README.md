@@ -1,17 +1,28 @@
 # skill-dl
 
-Download AI coding skills from [playbooks.com](https://playbooks.com) with a single command.
+> Bulk-download AI coding skills from [playbooks.com](https://playbooks.com) in one command.
 
-Skills are structured markdown files (`SKILL.md` + references) hosted on GitHub that provide context to AI coding agents like Claude Code, Cursor, and OpenCode. This tool bulk-downloads them by resolving playbooks.com URLs to their GitHub source, cloning only what's needed, and organizing them into categorized folders.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
+[![Shell](https://img.shields.io/badge/shell-bash%204%2B-green.svg)]()
+
+Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders — no API keys, no rate limits.
+
+---
 
 ## Install
 
+### One-liner (recommended)
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/skill-dl \
-  -o /usr/local/bin/skill-dl && chmod +x /usr/local/bin/skill-dl
+curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | bash
 ```
 
-Or clone the repo:
+Installs `skill-dl` to `/usr/local/bin` (or `~/.local/bin` as a fallback). Requires **Bash 4+** and **git**.
+
+> **macOS users:** The system ships Bash 3. Upgrade with `brew install bash` first.
+
+### Manual
 
 ```bash
 git clone https://github.com/yigitkonur/cli-skill-downloader.git
@@ -20,7 +31,15 @@ chmod +x skill-dl
 sudo ln -sf "$(pwd)/skill-dl" /usr/local/bin/skill-dl
 ```
 
-**Requirements:** `git`, `bash` 4+, `find` (macOS/Linux)
+### Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| `bash` | 4.0+ |
+| `git` | any |
+| macOS or Linux | — |
+
+---
 
 ## Quick Start
 
@@ -28,53 +47,57 @@ sudo ln -sf "$(pwd)/skill-dl" /usr/local/bin/skill-dl
 # Download a single skill
 skill-dl https://playbooks.com/skills/mcollina/skills/typescript-magician
 
-# Download multiple skills inline
+# Download multiple skills
 skill-dl \
   https://playbooks.com/skills/mcollina/skills/typescript-magician \
   https://playbooks.com/skills/nickcrew/claude-cortex/typescript-advanced-patterns \
   https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
 
 # Download from a file of URLs
-skill-dl urls.txt
+skill-dl examples/typescript-skills.txt
 
-# Mix URLs and files
-skill-dl urls.txt https://playbooks.com/skills/inkeep/skills/typescript-sdk
-
-# Pipe URLs
+# Pipe URLs from stdin
 cat urls.txt | skill-dl -
 
-# With options
-skill-dl urls.txt --output ./my-skills --force --verbose
+# Preview without downloading
+skill-dl urls.txt --dry-run
+
+# Custom output directory
+skill-dl urls.txt --output ./my-skills
 ```
+
+---
 
 ## Usage
 
 ```
-skill-dl <source> [options]
+skill-dl <source...> [options]
 ```
 
-### Source (required)
+### Sources (one or more, combinable)
 
 | Source | Description |
-|--------|------------|
-| `<url>` | Single playbooks.com skill URL |
+|--------|-------------|
+| `<url>` | `https://playbooks.com/skills/{owner}/{repo}/{skill}` |
 | `<file>` | Text file with one URL per line (`#` comments supported) |
 | `-` | Read URLs from stdin |
 
-Multiple sources can be combined: `skill-dl url1 url2 urls.txt`
+Mix freely: `skill-dl urls.txt https://playbooks.com/skills/...`
 
 ### Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-o, --output <dir>` | Output directory | `./skills-collection` |
-| `-c, --category <name>` | Force all skills into one category folder | auto |
-| `--no-auto-category` | Flat structure, no category folders | off |
-| `-f, --force` | Overwrite existing skill directories | off |
-| `--dry-run` | Preview what would be downloaded | off |
-| `-v, --verbose` | Show debug output | off |
-| `-h, --help` | Show help | — |
-| `--version` | Show version | — |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o, --output <dir>` | `./skills-collection` | Output directory |
+| `-c, --category <name>` | auto | Force all skills into one category folder |
+| `--no-auto-category` | off | Flat output, no category subfolders |
+| `-f, --force` | off | Overwrite existing skill directories |
+| `--dry-run` | off | Preview what would be downloaded |
+| `-v, --verbose` | off | Show debug output |
+| `-h, --help` | — | Show help |
+| `--version` | — | Show version |
+
+---
 
 ## How It Works
 
@@ -82,63 +105,70 @@ Multiple sources can be combined: `skill-dl url1 url2 urls.txt`
 playbooks.com/skills/{owner}/{repo}/{skill}
                         │       │       │
                         ▼       ▼       ▼
-              github.com/{owner}/{repo} → git clone --depth 1
-                                          │
-                                          ▼
-                              Find the skill directory containing SKILL.md
-                              (9 known paths + recursive search by dir name)
-                                          │
-                                          ▼
-                              Copy SKILL.md + references/ + rules/ + examples/ etc.
-                                          │
-                                          ▼
-                              skills-collection/{category}/{owner}--{repo}--{skill}/
+              github.com/{owner}/{repo}  →  git clone --depth 1
+                                            │
+                                            ▼
+                                Find skill directory containing SKILL.md
+                                (9 known paths + recursive name search)
+                                            │
+                                            ▼
+                                Copy SKILL.md + references/ + rules/ etc.
+                                            │
+                                            ▼
+                                skills-collection/{category}/{owner}--{repo}--{skill}/
 ```
 
-**Key details:**
+**Key properties:**
 
-- **No API rate limits** — uses `git clone --depth 1` (git protocol), not the GitHub API
-- **Clone once** — groups skills by repo so each repo is cloned only once
-- **Precise extraction** — only copies the specific skill directory, not the whole repo
-- **Smart discovery** — finds skills across 9+ common locations (`.claude/skills/`, `.agent/skills/`, `.cursor/skills/`, `plugins/*/skills/`, deeply nested paths, etc.)
-- **Root-level repos** — for single-skill repos, copies everything except repo metadata (exclusion-based, not a hardcoded whitelist — any folder name works)
-- **Deduplicates** — same URL listed twice is only downloaded once
+| Property | Detail |
+|----------|--------|
+| No API rate limits | Uses `git clone --depth 1` (git protocol), not GitHub API |
+| Clone once | Groups skills by repo — each repo is cloned only once |
+| Precise extraction | Copies only the specific skill directory, not the whole repo |
+| Smart discovery | 9 known paths + recursive SKILL.md search by directory name |
+| Root-level repos | Single-skill repos are copied wholesale (exclusion-based) |
+| Deduplication | Same URL listed twice is downloaded only once |
 
-## What Gets Downloaded
+---
 
-**Subdirectory skills** (most common): the entire skill directory is copied as-is.
+## What Gets Copied
 
-**Root-level skills** (repo IS the skill): everything is copied **except** known repo metadata:
+**Subdirectory skills** (most common): the entire skill folder is copied as-is.
+
+**Root-level skills** (repo = the skill): everything is copied **except** standard repo metadata:
 
 | Excluded | Items |
 |----------|-------|
-| Directories | `.git`, `.github`, `.gitlab`, `node_modules`, `.vscode`, `.idea` |
-| Files | `README.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitignore`, `.gitattributes`, `package.json`, lockfiles |
+| Dirs | `.git`, `.github`, `.gitlab`, `node_modules`, `.vscode`, `.idea` |
+| Files | `README.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `.gitignore`, `package.json`, lockfiles |
 
-Everything else — `SKILL.md`, `references/`, `rules/`, `examples/`, or any custom folder the skill author creates — is included automatically.
+Everything else — `SKILL.md`, `references/`, `rules/`, `examples/`, or any custom folder — is included automatically.
+
+---
 
 ## Auto-Categorization
 
-Skills are auto-sorted by name into folders:
+Skills are sorted into subfolders by name pattern:
 
-| Category | Matches |
-|----------|---------|
-| `strict-and-types/` | `*strict*`, `*advanced-type*`, `*type-expert*`, `*guardian*`, `*advanced-pattern*` |
-| `best-practices/` | `*typescript*`, `*expert*`, `*clean-typescript*` |
-| `code-quality/` | `*coding-standard*`, `*clean-code*`, `*code-style*`, `*best-practice*` |
+| Folder | Matches |
+|--------|---------|
 | `react-typescript/` | `*react-typescript*`, `*react-ts*`, `*nextjs-*` |
-| `pro-and-review/` | `*pro-skill*`, `*reviewer*`, `*code-review*`, `*magician*` |
-| `sdk-and-libraries/` | `*sdk*`, `*ts-library*`, `*typescript-v*` |
+| `strict-and-types/` | `*strict*`, `*advanced-type*`, `*type-expert*`, `*guardian*` |
+| `sdk-and-libraries/` | `*sdk*`, `*ts-library*`, `*library*` |
+| `pro-and-review/` | `*review*`, `*reviewer*`, `*magician*`, `*pro-skill*` |
 | `tooling-and-setup/` | `*generator*`, `*setup*`, `*init*`, `*tdd-*`, `*tooling*` |
+| `code-quality/` | `*coding-standard*`, `*clean-code*`, `*best-practice*` |
+| `best-practices/` | `*typescript*`, `*expert*`, `*clean-typescript*` |
 | `general/` | Everything else |
 
-Override: `--category <name>` or `--no-auto-category`
+Override with `--category <name>` or disable with `--no-auto-category`.
+
+---
 
 ## URL File Format
 
 ```bash
-# my-skills.txt
-# Comments and blank lines are ignored
+# my-skills.txt — comments and blank lines are ignored
 
 https://playbooks.com/skills/mcollina/skills/typescript-magician
 https://playbooks.com/skills/lobehub/lobehub/typescript
@@ -146,6 +176,10 @@ https://playbooks.com/skills/lobehub/lobehub/typescript
 # React skills
 https://playbooks.com/skills/madappgang/claude-code/react-typescript
 ```
+
+See [`examples/typescript-skills.txt`](examples/typescript-skills.txt) for a ready-to-use collection.
+
+---
 
 ## Output Structure
 
@@ -159,55 +193,47 @@ skills-collection/
 │       ├── SKILL.md
 │       └── rules/
 │           ├── generics-basics.md
-│           ├── conditional-types.md
-│           └── ...
+│           └── conditional-types.md
 ├── tooling-and-setup/
 │   └── greyhaven-ai--claude-code-config--tdd-typescript/
 │       ├── SKILL.md
 │       ├── checklists/
 │       ├── examples/
-│       ├── reference/
 │       └── templates/
-└── ...
+└── strict-and-types/
+    └── nickcrew--claude-cortex--typescript-advanced-patterns/
+        └── SKILL.md
 ```
+
+---
 
 ## Examples
 
 ```bash
-# Download a single skill
-skill-dl https://playbooks.com/skills/mcollina/skills/typescript-magician
+# Download the full TypeScript collection from the examples file
+skill-dl examples/typescript-skills.txt
 
-# Download multiple skills at once
+# Multiple skills at once with verbose output
 skill-dl \
   https://playbooks.com/skills/mcollina/skills/typescript-magician \
   https://playbooks.com/skills/jwynia/agent-skills/typescript-best-practices \
-  https://playbooks.com/skills/onmax/nuxt-skills/ts-library \
-  https://playbooks.com/skills/exploration-labs/typescript-code-review/typescript-code-review
+  --verbose
 
-# From a file of URLs
-skill-dl urls.txt -o ~/projects/ai-skills
+# All into a single folder (no auto-categorization)
+skill-dl examples/typescript-skills.txt -c my-skills
 
-# Mix files and inline URLs
-skill-dl urls.txt \
-  https://playbooks.com/skills/inkeep/skills/typescript-sdk \
-  https://playbooks.com/skills/greyhaven-ai/claude-code-config/tdd-typescript
+# Custom output path + force overwrite
+skill-dl urls.txt -o ~/ai-skills --force
 
-# Pipe from another command
-cat urls.txt | skill-dl -
+# Dry run to preview before committing
+skill-dl examples/typescript-skills.txt --dry-run
 
-# Force all into one category folder
-skill-dl urls.txt -c my-typescript-skills
-
-# Dry run to preview
-skill-dl urls.txt --dry-run
-
-# Re-download everything (overwrite existing)
-skill-dl urls.txt --force
-
-# Verbose debug output
-skill-dl https://playbooks.com/skills/inkeep/skills/typescript-sdk -v
+# Pipe from grep/awk/etc.
+grep "react" my-urls.txt | skill-dl -
 ```
+
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
