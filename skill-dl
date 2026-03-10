@@ -469,7 +469,7 @@ for repo_key in "${REPO_ORDER[@]}"; do
       failed_list+=("${url}")
       if [[ "$VERBOSE" == "true" ]]; then
         # Show what skills actually exist in the repo
-        local avail=""
+        avail=""
         avail=$(find "$temp_clone" -name "SKILL.md" -not -path "*/.git/*" 2>/dev/null | while read -r f; do
           basename "$(dirname "$f")"
         done | sort -u | tr '\n' ' ')
