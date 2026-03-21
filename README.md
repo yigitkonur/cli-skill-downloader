@@ -1,12 +1,12 @@
 # skill-dl
 
-> Bulk-download AI coding skills from [playbooks.com](https://playbooks.com) in one command.
+> Search, discover, and bulk-download AI coding skills from [playbooks.com](https://playbooks.com) in one command.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Shell](https://img.shields.io/badge/shell-bash%204%2B-green.svg)]()
 
-Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders — no API keys, no rate limits.
+Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders. v1.3.0 adds **Serper API** (Google-powered search) and **Scrapedo** proxy for enhanced discovery.
 
 ---
 
@@ -96,6 +96,40 @@ Mix freely: `skill-dl urls.txt https://playbooks.com/skills/...`
 | `-v, --verbose` | off | Show debug output |
 | `-h, --help` | — | Show help |
 | `--version` | — | Show version |
+
+---
+
+## Search & Discovery
+
+```bash
+# Search for skills by keyword (3-20 keywords required)
+skill-dl search typescript react nextjs testing vitest
+
+# Limit results
+skill-dl search openclaw agent plugin workflow --top 20
+
+# Only show skills matching 2+ keywords
+skill-dl search mcp server sdk tools --min-match 2
+```
+
+### Search backends (auto-detected)
+
+| Backend | How it works | When it activates |
+|---------|-------------|-------------------|
+| **Serper API** | Google search for `site:playbooks.com/skills` — broadest coverage | `SERPER_API_KEY` is set (built-in default included) |
+| **Playbooks scrape** | Direct HTML scraping, 3 pages per keyword | Always active |
+| **Scrapedo proxy** | Proxy fallback when direct requests are blocked | `SCRAPEDO_API_KEY` is set (built-in default included) |
+
+Results are ranked by how many of your keywords each skill matched. Built-in API keys are included — override with environment variables if needed.
+
+### Pipe search → download
+
+```bash
+# Search, extract URLs, download top 20
+skill-dl search openclaw workflow cron --top 20 \
+  | grep -oE 'https://playbooks\.com/skills/[^ |]+' \
+  | skill-dl - -o ./my-skills --no-auto-category -f
+```
 
 ---
 
