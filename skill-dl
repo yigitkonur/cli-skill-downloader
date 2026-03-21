@@ -12,7 +12,7 @@
 # ==============================================================================
 set -euo pipefail
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 SCRIPT_NAME="$(basename "$0")"
 
 # --- Defaults ---
@@ -22,6 +22,10 @@ AUTO_CATEGORIZE=true
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
+
+# --- API Keys (environment overrides hardcoded defaults) ---
+SERPER_API_KEY="${SERPER_API_KEY:-a3c7a6122cb26d80c6a975e41b2a1047eb746b59}"
+SCRAPEDO_API_KEY="${SCRAPEDO_API_KEY:-d4874c0918ad49b782ce649c642364a5561da9e8387}"
 
 # --- Colors (disabled when piped) ---
 if [[ -t 1 ]]; then
@@ -56,13 +60,20 @@ cmd_search() {
 
   if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat <<EOF
-skill-dl search — Discover skills on playbooks.com
+skill-dl search — Discover skills via Google (Serper) + playbooks.com
 
 USAGE
   ${SCRIPT_NAME} search <keyword1> <keyword2> ... [options]
 
-  Requires 3-20 keywords. Searches playbooks.com for each keyword,
+  Requires 3-20 keywords. Searches using all available backends,
   then ranks skills by how many keywords they match.
+
+SEARCH BACKENDS (auto-detected)
+  Serper API    Google-powered, finds skills across all of playbooks.com
+                Set SERPER_API_KEY env var or uses built-in key
+  Playbooks     Direct HTML scraping (always active, 3 pages per keyword)
+  Scrapedo      Proxy fallback when direct requests are blocked
+                Set SCRAPEDO_API_KEY env var or uses built-in key
 
 OPTIONS
   --top <N>         Show only top N results (default: all)
@@ -73,6 +84,7 @@ EXAMPLES
   skill-dl search typescript react nextjs testing vitest
   skill-dl search "browser automation" playwright puppeteer --top 20
   skill-dl search mcp server sdk client tools --min-match 2
+  SERPER_API_KEY=xxx skill-dl search openclaw agent skill --top 30
 EOF
     exit 0
   fi
@@ -105,7 +117,7 @@ EOF
     exit 1
   fi
 
-  echo "[search] Searching playbooks.com for ${kw_count} keyword(s)..." >&2
+  echo "[search] Searching for ${kw_count} keyword(s)..." >&2
 
   # ---- Scrape in parallel, one temp file per keyword/page ---------------------
   local tmp_dir
@@ -115,24 +127,73 @@ EOF
   local pids=()
   local kw_idx=0
 
-  for kw in "${keywords[@]}"; do
-    local encoded_kw
-    encoded_kw=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$kw" 2>/dev/null \
-      || printf '%s' "$kw" | sed 's/ /%20/g; s/!/%21/g; s/"/%22/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g')
+  # Determine which search backends are available
+  local use_serper=false
+  local use_scrapedo=false
+  if [[ -n "${SERPER_API_KEY:-}" ]]; then
+    use_serper=true
+    echo "[search] Serper API enabled (Google-powered discovery)" >&2
+  fi
+  if [[ -n "${SCRAPEDO_API_KEY:-}" ]]; then
+    use_scrapedo=true
+    echo "[search] Scrapedo proxy enabled (fallback for blocked requests)" >&2
+  fi
 
+  for kw in "${keywords[@]}"; do
     local out_file="${tmp_dir}/kw_${kw_idx}"
+    touch "$out_file"
     kw_idx=$((kw_idx + 1))
 
+    # --- Inline all logic in the subshell (avoids function visibility issues) ---
     (
+      # Backend 1: Serper API (Google search)
+      if [[ "$use_serper" == "true" ]]; then
+        serper_resp=$(curl -sL --max-time 15 \
+          -X POST "https://google.serper.dev/search" \
+          -H "X-API-KEY: ${SERPER_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"q\": \"site:playbooks.com/skills ${kw}\", \"num\": 30}" 2>/dev/null) || true
+        if [[ -n "$serper_resp" ]]; then
+          echo "$serper_resp" \
+            | grep -oE 'https://playbooks\.com/skills/[^"]+' \
+            | sed 's|https://playbooks\.com||; s|\\$||; s|/$||' \
+            | grep -E '^/skills/[^/]+/[^/]+/[^/]+$' \
+            | grep -v '[?#\\]' \
+            | sort -u >> "$out_file"
+        fi
+      fi
+
+      # Backend 2: Direct playbooks.com scraping (with Scrapedo fallback)
+      enc_kw=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$kw" 2>/dev/null \
+        || printf '%s' "$kw" | sed 's/ /%20/g; s/!/%21/g; s/"/%22/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g')
+
       for page in 1 2 3; do
-        local url="https://playbooks.com/skills?search=${encoded_kw}&page=${page}"
-        curl -sL --max-time 10 "$url" 2>/dev/null \
-          | grep -oE '/skills/[^"<> ]+' \
-          | grep -E '^/skills/[^/]+/[^/]+/[^/]+$' \
-          | grep -v '[\\?#]' \
-          | sort -u
+        pg_url="https://playbooks.com/skills?search=${enc_kw}&page=${page}"
+        html=$(curl -sL --max-time 12 "$pg_url" 2>/dev/null) || true
+
+        # Fallback to Scrapedo if direct fetch returned too little
+        if [[ ${#html} -lt 200 && "$use_scrapedo" == "true" ]]; then
+          enc_target=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$pg_url" 2>/dev/null || echo "$pg_url")
+          html=$(curl -sL --max-time 20 "https://api.scrapedo.com/scrape?url=${enc_target}&token=${SCRAPEDO_API_KEY}&render=false&super=false" 2>/dev/null) || true
+        fi
+
+        if [[ -n "$html" ]]; then
+          echo "$html" \
+            | grep -oE '/skills/[^"<> ]+' \
+            | grep -E '^/skills/[^/]+/[^/]+/[^/]+$' \
+            | grep -v '[?#]' \
+            | sort -u >> "$out_file"
+        fi
       done
-    ) > "$out_file" &
+
+      # Clean and deduplicate: strip trailing backslashes, whitespace, empty lines
+      if [[ -s "$out_file" ]]; then
+        sed -i '' 's/\\*$//; s/[[:space:]]*$//' "$out_file" 2>/dev/null \
+          || sed -i 's/\\*$//; s/[[:space:]]*$//' "$out_file"
+        grep -E '^/skills/[^/]+/[^/]+/[^/]+$' "$out_file" | sort -u > "${out_file}.clean"
+        mv "${out_file}.clean" "$out_file"
+      fi
+    ) &
 
     pids+=($!)
   done
@@ -141,6 +202,13 @@ EOF
   for pid in "${pids[@]}"; do
     wait "$pid" 2>/dev/null || true
   done
+
+  # Count total unique results across all keywords for reporting
+  local total_raw=0
+  for f in "${tmp_dir}"/kw_*; do
+    [[ -f "$f" && -s "$f" ]] && total_raw=$((total_raw + $(wc -l < "$f" | tr -d ' ')))
+  done
+  echo "[search] Raw results: ${total_raw} skill references across ${kw_count} keywords" >&2
 
   echo "[search] Aggregating results..." >&2
 
@@ -230,7 +298,7 @@ EOF
 # --- Help ---
 show_help() {
   cat <<EOF
-skill-dl v${VERSION} — Download skills from playbooks.com
+skill-dl v${VERSION} — Download skills from playbooks.com (with Serper + Scrapedo)
 
 USAGE
   ${SCRIPT_NAME} <source> [options]
@@ -249,6 +317,10 @@ OPTIONS
   -v, --verbose            Debug output
   -h, --help               Show this help
   --version                Show version
+
+ENVIRONMENT
+  SERPER_API_KEY           Google search via serper.dev (built-in default)
+  SCRAPEDO_API_KEY         Scraping proxy via scrapedo.com (built-in default)
 
 URL FORMAT
   https://playbooks.com/skills/{owner}/{repo}/{skill-name}
