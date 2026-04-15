@@ -15,6 +15,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -29,6 +30,21 @@ archives:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: false
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+changelog:
+  use: git
+  abbrev: -1
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
 
 checksum:
   name_template: checksums.txt

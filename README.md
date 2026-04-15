@@ -3,10 +3,10 @@
 > Search, discover, and bulk-download AI coding skills from [playbooks.com](https://playbooks.com) in one command.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
 [![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)]()
 
-Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders. v1.3.0 adds **Serper API** (Google-powered search) and **Scrapedo** proxy for enhanced discovery.
+Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders. The current release line includes **Serper API** (Google-powered search) and **Scrapedo** proxy for enhanced discovery.
 
 ---
 
@@ -40,6 +40,27 @@ sudo install -m 755 skill-dl /usr/local/bin/skill-dl
 
 Replace `skill-dl_linux_amd64.tar.gz` with the asset matching your platform.
 
+### Platform Downloads
+
+Download the latest release assets directly from GitHub Releases:
+
+| Platform | Asset |
+|---|---|
+| Linux amd64 | `skill-dl_linux_amd64.tar.gz` |
+| Linux arm64 | `skill-dl_linux_arm64.tar.gz` |
+| macOS amd64 | `skill-dl_darwin_amd64.tar.gz` |
+| macOS arm64 | `skill-dl_darwin_arm64.tar.gz` |
+| Windows amd64 | `skill-dl_windows_amd64.zip` |
+| Windows arm64 | `skill-dl_windows_arm64.zip` |
+
+Windows example:
+
+```powershell
+curl.exe -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/skill-dl_windows_amd64.zip
+tar -xf skill-dl_windows_amd64.zip
+.\skill-dl.exe --version
+```
+
 ### Development build
 
 ```bash
@@ -67,6 +88,8 @@ them from GitHub's latest-release URLs directly:
 - `skill-dl_linux_arm64.tar.gz`
 - `skill-dl_darwin_amd64.tar.gz`
 - `skill-dl_darwin_arm64.tar.gz`
+- `skill-dl_windows_amd64.zip`
+- `skill-dl_windows_arm64.zip`
 - `checksums.txt`
 
 For local development, the same layout can be generated with:
@@ -85,6 +108,14 @@ reference comparison:
 go test ./...
 ./scripts/compare-reference.sh
 ./scripts/test-install-local-release.sh
+```
+
+### Changelog
+
+Release notes are tracked in [CHANGELOG.md](CHANGELOG.md). To create a GitHub Release from the current tag with the matching changelog section, use:
+
+```bash
+bash scripts/create-github-release.sh v1.3.0
 ```
 
 ---
