@@ -26,6 +26,7 @@ gh auth status >/dev/null
 
 git diff --quiet
 git diff --cached --quiet
+git ls-files --error-unmatch cmd/skill-dl/main.go >/dev/null
 
 if ! git rev-parse "${TAG}" >/dev/null 2>&1; then
   git tag -a "${TAG}" -m "Release ${TAG}"

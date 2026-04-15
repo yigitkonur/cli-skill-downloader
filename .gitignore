@@ -1,5 +1,5 @@
 skills-collection/
 *.tmp
 .DS_Store
-skill-dl
+/skill-dl
 dist/
