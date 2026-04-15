@@ -1,0 +1,27 @@
+
+skill-dl v1.3.0
+Downloading 18 skill(s) into: ./skills-collection
+
+[INFO] Deduplicated: 18 → 17 unique URLs
+[INFO] [1/17] omer-metin/skills-for-antigravity/typescript-strict → ./skills-collection/omer-metin--skills-for-antigravity--typescript-strict
+[INFO] [2/17] flpbalada/my-opencode-config/typescript-advanced-types → ./skills-collection/flpbalada--my-opencode-config--typescript-advanced-types
+[INFO] [3/17] nickcrew/claude-cortex/typescript-advanced-patterns → ./skills-collection/nickcrew--claude-cortex--typescript-advanced-patterns
+[INFO] [4/17] gracefullight/stock-checker/typescript-type-expert → ./skills-collection/gracefullight--stock-checker--typescript-type-expert
+[INFO] [5/17] lobehub/lobehub/typescript → ./skills-collection/lobehub--lobehub--typescript
+[INFO] [6/17] academind/ai-config/clean-typescript → ./skills-collection/academind--ai-config--clean-typescript
+[INFO] [7/17] jwynia/agent-skills/typescript-best-practices → ./skills-collection/jwynia--agent-skills--typescript-best-practices
+[INFO] [8/17] affaan-m/everything-claude-code/coding-standards → ./skills-collection/affaan-m--everything-claude-code--coding-standards
+[INFO] [9/17] forge-town/skills/check-try-catch → ./skills-collection/forge-town--skills--check-try-catch
+[INFO] [10/17] vudovn/antigravity-kit/clean-code → ./skills-collection/vudovn--antigravity-kit--clean-code
+[INFO] [11/17] mcollina/skills/typescript-magician → ./skills-collection/mcollina--skills--typescript-magician
+[INFO] [12/17] exploration-labs/typescript-code-review/typescript-code-review → ./skills-collection/exploration-labs--typescript-code-review--typescript-code-review
+[INFO] [13/17] openrouterteam/agent-skills/typescript-sdk → ./skills-collection/openrouterteam--agent-skills--typescript-sdk
+[INFO] [14/17] inkeep/skills/typescript-sdk → ./skills-collection/inkeep--skills--typescript-sdk
+[INFO] [15/17] madappgang/claude-code/react-typescript → ./skills-collection/madappgang--claude-code--react-typescript
+[INFO] [16/17] greyhaven-ai/claude-code-config/tdd-typescript → ./skills-collection/greyhaven-ai--claude-code-config--tdd-typescript
+[INFO] [17/17] ntcoding/claude-skillz/typescript-backend-project-setup → ./skills-collection/ntcoding--claude-skillz--typescript-backend-project-setup
+
+━━━ Summary ━━━
+  Total:   17
+  Skipped: 17
+

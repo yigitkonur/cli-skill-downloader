@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
-[![Shell](https://img.shields.io/badge/shell-bash%204%2B-green.svg)]()
+[![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)]()
 
 Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders. v1.3.0 adds **Serper API** (Google-powered search) and **Scrapedo** proxy for enhanced discovery.
 
@@ -18,24 +18,32 @@ Skills are structured markdown files (`SKILL.md` + references) that inject exper
 curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | bash
 ```
 
-Installs `skill-dl` to `/usr/local/bin` (or `~/.local/bin` as a fallback). Requires **Bash 4+** and **git**.
-
-> **macOS users:** The system ships Bash 3. Upgrade with `brew install bash` first.
+Clones the repo, builds the Go binary, and installs `skill-dl` to `/usr/local/bin`
+(or `~/.local/bin` as a fallback). Requires **Go 1.26+** and **git**.
 
 ### Manual
 
 ```bash
 git clone https://github.com/yigitkonur/cli-skill-downloader.git
 cd cli-skill-downloader
-chmod +x skill-dl
-sudo ln -sf "$(pwd)/skill-dl" /usr/local/bin/skill-dl
+go build -o skill-dl ./cmd/skill-dl
+install -m 755 skill-dl /usr/local/bin/skill-dl
+```
+
+### Development build
+
+```bash
+git clone https://github.com/yigitkonur/cli-skill-downloader.git
+cd cli-skill-downloader
+go run ./cmd/skill-dl --help
+go test ./...
 ```
 
 ### Requirements
 
 | Requirement | Version |
 |-------------|---------|
-| `bash` | 4.0+ |
+| `go` | 1.26+ |
 | `git` | any |
 | macOS or Linux | — |
 
