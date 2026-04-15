@@ -49,7 +49,7 @@ Do not use Cobra or another external CLI framework.
   standard-library building blocks, not a framework or the default `flag`
   parsing behavior.
 - The standard library keeps the rewrite dependency-light, easier to audit, and
-  simpler to install from source with `go install` or `go build`.
+  straightforward to distribute as prebuilt GitHub release archives.
 
 ## Architecture shape
 

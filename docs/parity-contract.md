@@ -61,8 +61,13 @@ exact text goldens.
 
 ### Install mode
 
-- `install.sh` requires macOS or Linux, Bash 4+, and `git`.
-- It downloads a single executable named `skill-dl` from the raw GitHub URL.
-- It prefers `/usr/local/bin`, otherwise falls back to `~/.local/bin`.
-- It verifies the downloaded file looks like a bash script before installing.
+- `install.sh` requires macOS or Linux plus `curl`, `tar`, and a writable
+  install directory.
+- It resolves the latest tagged GitHub release unless a specific version is
+  requested.
+- It downloads a prebuilt archive named `skill-dl_{os}_{arch}.tar.gz` plus
+  `checksums.txt`.
+- It verifies the archive checksum when `sha256sum` or `shasum` is available.
+- It installs atomically via `${INSTALL_DIR}/skill-dl.new` then renames to
+  `${INSTALL_DIR}/skill-dl`.
 - It reports the installed binary version by invoking `skill-dl --version`.

@@ -1,6 +1,6 @@
 package cli
 
-const Version = "1.3.0"
+var Version = "1.3.0"
 
 const mainHelpText = `skill-dl v1.3.0 — Download skills from playbooks.com (with Serper + Scrapedo)
 
