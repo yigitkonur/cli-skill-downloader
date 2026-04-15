@@ -1,0 +1,25 @@
+skill-dl search — Discover skills via Google (Serper) + playbooks.com
+
+USAGE
+  skill-dl search <keyword1> <keyword2> ... [options]
+
+  Requires 3-20 keywords. Searches using all available backends,
+  then ranks skills by how many keywords they match.
+
+SEARCH BACKENDS (auto-detected)
+  Serper API    Google-powered, finds skills across all of playbooks.com
+                Set SERPER_API_KEY env var or uses built-in key
+  Playbooks     Direct HTML scraping (always active, 3 pages per keyword)
+  Scrapedo      Proxy fallback when direct requests are blocked
+                Set SCRAPEDO_API_KEY env var or uses built-in key
+
+OPTIONS
+  --top <N>         Show only top N results (default: all)
+  --min-match <N>   Only show skills matching N+ keywords (default: 1)
+  -h, --help        Show this help
+
+EXAMPLES
+  skill-dl search typescript react nextjs testing vitest
+  skill-dl search "browser automation" playwright puppeteer --top 20
+  skill-dl search mcp server sdk client tools --min-match 2
+  SERPER_API_KEY=xxx skill-dl search openclaw agent skill --top 30
