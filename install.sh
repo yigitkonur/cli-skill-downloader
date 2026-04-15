@@ -74,16 +74,8 @@ resolve_version() {
 
 current_installed_version() {
   local target="${INSTALL_DIR}/${BINARY}"
-  local candidate=""
-
-  if [[ -x "${target}" ]]; then
-    candidate="${target}"
-  elif command -v "${BINARY}" >/dev/null 2>&1; then
-    candidate="$(command -v "${BINARY}")"
-  fi
-
-  [[ -z "${candidate}" ]] && return 0
-  "${candidate}" --version 2>/dev/null | head -n 1 | sed -n 's/^skill-dl //p'
+  [[ -x "${target}" ]] || return 0
+  "${target}" --version 2>/dev/null | head -n 1 | sed -n 's/^skill-dl //p'
 }
 
 verify_checksum() {

@@ -23,8 +23,9 @@ ASSET_NAME="skill-dl_${os}_${arch}.tar.gz"
 DOWNLOAD_DIR="${TMP_DIR}/releases/download/${VERSION}"
 INSTALL_DIR_EXPLICIT="${TMP_DIR}/bin-explicit"
 INSTALL_DIR_LATEST="${TMP_DIR}/bin-latest"
+FAKE_PATH_DIR="${TMP_DIR}/fake-path"
 
-mkdir -p "${DOWNLOAD_DIR}" "${INSTALL_DIR_EXPLICIT}" "${INSTALL_DIR_LATEST}"
+mkdir -p "${DOWNLOAD_DIR}" "${INSTALL_DIR_EXPLICIT}" "${INSTALL_DIR_LATEST}" "${FAKE_PATH_DIR}"
 
 go build -o "${TMP_DIR}/skill-dl" "${ROOT_DIR}/cmd/skill-dl"
 tar -C "${TMP_DIR}" -czf "${DOWNLOAD_DIR}/${ASSET_NAME}" skill-dl
@@ -34,6 +35,13 @@ tar -C "${TMP_DIR}" -czf "${DOWNLOAD_DIR}/${ASSET_NAME}" skill-dl
   shasum -a 256 "${ASSET_NAME}" > checksums.txt
 )
 
+cat > "${FAKE_PATH_DIR}/skill-dl" <<'EOF'
+#!/usr/bin/env bash
+echo "skill-dl v9.9.9"
+EOF
+chmod +x "${FAKE_PATH_DIR}/skill-dl"
+
+PATH="${FAKE_PATH_DIR}:$PATH" \
 SKILL_DL_RELEASES_URL="file://${TMP_DIR}/releases" \
 SKILL_DL_VERSION="${VERSION}" \
 SKILL_DL_INSTALL_DIR="${INSTALL_DIR_EXPLICIT}" \
@@ -102,6 +110,7 @@ for _ in $(seq 1 50); do
 done
 
 PORT="$(cat "${PORT_FILE}")"
+PATH="${FAKE_PATH_DIR}:$PATH" \
 SKILL_DL_RELEASES_URL="http://127.0.0.1:${PORT}/releases" \
 SKILL_DL_INSTALL_DIR="${INSTALL_DIR_LATEST}" \
 bash "${ROOT_DIR}/install.sh"
