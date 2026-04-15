@@ -1,3 +1,5 @@
 skills-collection/
 *.tmp
 .DS_Store
+skill-dl
+dist/

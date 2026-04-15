@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
-[![Shell](https://img.shields.io/badge/shell-bash%204%2B-green.svg)]()
+[![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)]()
 
 Skills are structured markdown files (`SKILL.md` + references) that inject expert context into AI coding agents like **Claude Code**, **Cursor**, and **OpenCode**. `skill-dl` resolves playbooks.com URLs to their GitHub source, clones only what's needed, and organizes everything into categorized folders. v1.3.0 adds **Serper API** (Google-powered search) and **Scrapedo** proxy for enhanced discovery.
 
@@ -15,29 +15,77 @@ Skills are structured markdown files (`SKILL.md` + references) that inject exper
 ### One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | bash
+sudo -v ; curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash
 ```
 
-Installs `skill-dl` to `/usr/local/bin` (or `~/.local/bin` as a fallback). Requires **Bash 4+** and **git**.
+Downloads the latest prebuilt release archive for your OS/architecture, verifies
+its checksum, and installs `skill-dl` to `/usr/local/bin`.
 
-> **macOS users:** The system ships Bash 3. Upgrade with `brew install bash` first.
+Install a specific release tag:
+
+```bash
+sudo -v ; curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash -s -- v1.3.0
+```
 
 ### Manual
 
 ```bash
+curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/skill-dl_linux_amd64.tar.gz
+curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/checksums.txt
+grep " skill-dl_linux_amd64.tar.gz$" checksums.txt | shasum -a 256 -c -
+# or: grep " skill-dl_linux_amd64.tar.gz$" checksums.txt | sha256sum -c -
+tar -xzf skill-dl_linux_amd64.tar.gz
+sudo install -m 755 skill-dl /usr/local/bin/skill-dl
+```
+
+Replace `skill-dl_linux_amd64.tar.gz` with the asset matching your platform.
+
+### Development build
+
+```bash
 git clone https://github.com/yigitkonur/cli-skill-downloader.git
 cd cli-skill-downloader
-chmod +x skill-dl
-sudo ln -sf "$(pwd)/skill-dl" /usr/local/bin/skill-dl
+go run ./cmd/skill-dl --help
+go test ./...
 ```
 
 ### Requirements
 
 | Requirement | Version |
 |-------------|---------|
-| `bash` | 4.0+ |
-| `git` | any |
+| `curl` | any |
+| `tar` | any |
+| `sha256sum` or `shasum` | any |
 | macOS or Linux | — |
+
+### Release Assets
+
+The release pipeline publishes stable archive names so the installer can fetch
+them from GitHub's latest-release URLs directly:
+
+- `skill-dl_linux_amd64.tar.gz`
+- `skill-dl_linux_arm64.tar.gz`
+- `skill-dl_darwin_amd64.tar.gz`
+- `skill-dl_darwin_arm64.tar.gz`
+- `checksums.txt`
+
+For local development, the same layout can be generated with:
+
+```bash
+./scripts/build-release-artifacts.sh
+./scripts/verify-release-layout.sh
+```
+
+### Verification
+
+The repo includes both frozen parity fixtures and direct Go-versus-bash
+reference comparison:
+
+```bash
+go test ./...
+./scripts/compare-reference.sh
+./scripts/test-install-local-release.sh
+```
 
 ---
 

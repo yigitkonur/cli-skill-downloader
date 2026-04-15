@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# install.sh — Install skill-dl
+# install.sh — Install a prebuilt skill-dl release archive
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | bash
+#   sudo -v ; curl https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash
+#   sudo -v ; curl https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash -s -- v1.3.0
 # ==============================================================================
 set -euo pipefail
 
-REPO="yigitkonur/cli-skill-downloader"
-BRANCH="main"
+REPO_SLUG="${SKILL_DL_REPO_SLUG:-yigitkonur/cli-skill-downloader}"
+RELEASES_URL="${SKILL_DL_RELEASES_URL:-https://github.com/${REPO_SLUG}/releases}"
 BINARY="skill-dl"
-RAW_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${BINARY}"
+INSTALL_DIR="${SKILL_DL_INSTALL_DIR:-/usr/local/bin}"
+REQUESTED_VERSION="${SKILL_DL_VERSION:-${1:-latest}}"
 
-# Colors
+if [[ $# -gt 1 ]]; then
+  echo "usage: install.sh [latest|vX.Y.Z]" >&2
+  exit 1
+fi
+
 if [[ -t 1 ]]; then
   BOLD='\033[1m'; GREEN='\033[0;32m'; RED='\033[0;31m'
   YELLOW='\033[0;33m'; DIM='\033[2m'; RESET='\033[0m'
@@ -26,101 +32,141 @@ error()   { echo -e "${RED}✗${RESET} $*" >&2; }
 success() { echo -e "${GREEN}✓${RESET} $*"; }
 die()     { error "$*"; exit 1; }
 
-# Check OS
-OS="$(uname -s)"
-if [[ "$OS" != "Linux" && "$OS" != "Darwin" ]]; then
-  die "Unsupported OS: $OS. Only Linux and macOS are supported."
-fi
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "$1 is required but not found."
+}
 
-# Check bash version (need 4+ for associative arrays)
-if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
-  if [[ "$OS" == "Darwin" ]]; then
-    die "skill-dl requires Bash 4+. macOS ships Bash 3.\nFix: brew install bash"
+detect_os() {
+  case "$(uname -s)" in
+    Linux) echo "linux" ;;
+    Darwin) echo "darwin" ;;
+    *) die "Unsupported OS: $(uname -s). Only Linux and macOS are supported." ;;
+  esac
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "amd64" ;;
+    arm64|aarch64) echo "arm64" ;;
+    *) die "Unsupported architecture: $(uname -m). Only amd64 and arm64 are supported." ;;
+  esac
+}
+
+resolve_version() {
+  if [[ "${REQUESTED_VERSION}" != "latest" ]]; then
+    echo "${REQUESTED_VERSION}"
+    return
+  fi
+
+  if [[ -n "${SKILL_DL_LATEST_VERSION:-}" ]]; then
+    echo "${SKILL_DL_LATEST_VERSION}"
+    return
+  fi
+
+  [[ "${RELEASES_URL}" == file://* ]] && die "Set SKILL_DL_VERSION when using a file:// release source."
+
+  local latest_url
+  latest_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "${RELEASES_URL}/latest")" || die "Unable to resolve the latest release."
+  local latest_version="${latest_url##*/}"
+  [[ -n "${latest_version}" ]] || die "Unable to parse the latest release version."
+  echo "${latest_version}"
+}
+
+current_installed_version() {
+  local target="${INSTALL_DIR}/${BINARY}"
+  local candidate=""
+
+  if [[ -x "${target}" ]]; then
+    candidate="${target}"
+  elif command -v "${BINARY}" >/dev/null 2>&1; then
+    candidate="$(command -v "${BINARY}")"
+  fi
+
+  [[ -z "${candidate}" ]] && return 0
+  "${candidate}" --version 2>/dev/null | head -n 1 | sed -n 's/^skill-dl //p'
+}
+
+verify_checksum() {
+  local asset_path="$1"
+  local checksums_path="$2"
+  local asset_name
+  asset_name="$(basename "${asset_path}")"
+  local expected=""
+
+  expected="$(awk -v name="${asset_name}" '$2 == name {print $1}' "${checksums_path}")"
+  [[ -n "${expected}" ]] || die "Could not find ${asset_name} in checksums.txt"
+
+  local actual=""
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "${asset_path}" | awk '{print $1}')"
+  elif command -v shasum >/dev/null 2>&1; then
+    actual="$(shasum -a 256 "${asset_path}" | awk '{print $1}')"
   else
-    die "skill-dl requires Bash 4+. Current: ${BASH_VERSION}"
+    warn "No checksum tool found (sha256sum/shasum). Skipping checksum verification."
+    return
   fi
-fi
 
-# Check for git
-command -v git >/dev/null 2>&1 || die "git is required but not found. Install git first."
+  [[ "${actual}" == "${expected}" ]] || die "Checksum verification failed for ${asset_name}"
+}
 
-# Check for download tool
-if command -v curl >/dev/null 2>&1; then
-  DOWNLOADER="curl"
-elif command -v wget >/dev/null 2>&1; then
-  DOWNLOADER="wget"
-else
-  die "curl or wget is required but neither was found."
-fi
+require_cmd curl
+require_cmd tar
+require_cmd install
 
-# Determine install directory
-INSTALL_DIR=""
-NEED_SUDO=false
-
-if [[ -w "/usr/local/bin" ]]; then
-  INSTALL_DIR="/usr/local/bin"
-elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  INSTALL_DIR="/usr/local/bin"
-  NEED_SUDO=true
-else
-  # Fallback to user-local
-  INSTALL_DIR="${HOME}/.local/bin"
-  mkdir -p "$INSTALL_DIR"
-  warn "No write access to /usr/local/bin, installing to ~/.local/bin"
-  if [[ ":$PATH:" != *":${HOME}/.local/bin:"* ]]; then
-    warn "Add ~/.local/bin to your PATH:"
-    warn "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc"
-  fi
-fi
-
+OS="$(detect_os)"
+ARCH="$(detect_arch)"
+VERSION="$(resolve_version)"
+ASSET_NAME="${BINARY}_${OS}_${ARCH}.tar.gz"
+ASSET_URL="${RELEASES_URL}/download/${VERSION}/${ASSET_NAME}"
+CHECKSUMS_URL="${RELEASES_URL}/download/${VERSION}/checksums.txt"
 TARGET="${INSTALL_DIR}/${BINARY}"
+
+if [[ ! -d "${INSTALL_DIR}" ]]; then
+  mkdir -p "${INSTALL_DIR}" 2>/dev/null || true
+fi
+[[ -w "${INSTALL_DIR}" ]] || die "Install directory ${INSTALL_DIR} is not writable. Use sudo or set SKILL_DL_INSTALL_DIR to a writable path."
+
+INSTALLED_VERSION="$(current_installed_version || true)"
+if [[ "${INSTALLED_VERSION}" == "${VERSION}" && "${SKILL_DL_FORCE:-0}" != "1" ]]; then
+  success "skill-dl ${VERSION} is already installed."
+  exit 0
+fi
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${TMP_DIR}"' EXIT
+ARCHIVE_PATH="${TMP_DIR}/${ASSET_NAME}"
+CHECKSUMS_PATH="${TMP_DIR}/checksums.txt"
 
 echo ""
 echo -e "${BOLD}Installing skill-dl${RESET}"
-echo -e "${DIM}From: ${RAW_URL}${RESET}"
-echo -e "${DIM}  To: ${TARGET}${RESET}"
+echo -e "${DIM}Version: ${VERSION}${RESET}"
+echo -e "${DIM}Source:  ${ASSET_URL}${RESET}"
+echo -e "${DIM}Target:  ${TARGET}${RESET}"
 echo ""
 
-# Download
-TMP="$(mktemp)"
-trap 'rm -f "$TMP"' EXIT
+info "Downloading release archive..."
+curl -fsSL "${ASSET_URL}" -o "${ARCHIVE_PATH}" || die "Download failed for ${ASSET_URL}"
 
-info "Downloading..."
-if [[ "$DOWNLOADER" == "curl" ]]; then
-  curl -fsSL "$RAW_URL" -o "$TMP" || die "Download failed. Check your internet connection."
-else
-  wget -qO "$TMP" "$RAW_URL" || die "Download failed. Check your internet connection."
-fi
+info "Downloading checksums..."
+curl -fsSL "${CHECKSUMS_URL}" -o "${CHECKSUMS_PATH}" || die "Download failed for ${CHECKSUMS_URL}"
 
-# Validate it looks like a bash script
-head -1 "$TMP" | grep -q "bash" || die "Downloaded file does not look like a shell script. Aborting."
+info "Verifying checksum..."
+verify_checksum "${ARCHIVE_PATH}" "${CHECKSUMS_PATH}"
 
-chmod +x "$TMP"
+info "Extracting archive..."
+tar -xzf "${ARCHIVE_PATH}" -C "${TMP_DIR}" || die "Failed to extract ${ASSET_NAME}"
+[[ -x "${TMP_DIR}/${BINARY}" ]] || die "Archive did not contain ${BINARY} at the expected path."
 
-# Install
-if [[ "$NEED_SUDO" == "true" ]]; then
-  info "Installing to ${INSTALL_DIR} (requires sudo)..."
-  sudo mv "$TMP" "$TARGET"
-  sudo chmod +x "$TARGET"
-else
-  info "Installing to ${INSTALL_DIR}..."
-  mv "$TMP" "$TARGET"
-  chmod +x "$TARGET"
-fi
+info "Installing to ${INSTALL_DIR}..."
+install -m 755 "${TMP_DIR}/${BINARY}" "${TARGET}.new"
+mv "${TARGET}.new" "${TARGET}"
 
-# Verify
-if command -v "$BINARY" >/dev/null 2>&1; then
-  version=$("$BINARY" --version 2>/dev/null || echo "unknown")
-  echo ""
-  success "skill-dl installed successfully! (${version})"
-  echo ""
-  echo -e "${DIM}Get started:${RESET}"
-  echo "  skill-dl https://playbooks.com/skills/mcollina/skills/typescript-magician"
-  echo "  skill-dl --help"
-  echo ""
-else
-  echo ""
-  warn "Installed to ${TARGET}, but 'skill-dl' is not in your PATH."
-  warn "You can run it directly: ${TARGET}"
-  echo ""
-fi
+INSTALLED_VERSION="$("${TARGET}" --version 2>/dev/null || echo unknown)"
+
+echo ""
+success "skill-dl installed successfully! (${INSTALLED_VERSION})"
+echo ""
+echo -e "${DIM}Get started:${RESET}"
+echo "  ${BINARY} https://playbooks.com/skills/mcollina/skills/typescript-magician"
+echo "  ${BINARY} --help"
+echo ""
