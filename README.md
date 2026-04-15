@@ -32,10 +32,13 @@ sudo -v ; curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-down
 ```bash
 curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/skill-dl_linux_amd64.tar.gz
 curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/checksums.txt
-shasum -a 256 -c checksums.txt --ignore-missing
+grep " skill-dl_linux_amd64.tar.gz$" checksums.txt | shasum -a 256 -c -
+# or: grep " skill-dl_linux_amd64.tar.gz$" checksums.txt | sha256sum -c -
 tar -xzf skill-dl_linux_amd64.tar.gz
 sudo install -m 755 skill-dl /usr/local/bin/skill-dl
 ```
+
+Replace `skill-dl_linux_amd64.tar.gz` with the asset matching your platform.
 
 ### Development build
 
