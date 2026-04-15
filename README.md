@@ -15,19 +15,26 @@ Skills are structured markdown files (`SKILL.md` + references) that inject exper
 ### One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | bash
+sudo -v ; curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash
 ```
 
-Clones the repo, builds the Go binary, and installs `skill-dl` to `/usr/local/bin`
-(or `~/.local/bin` as a fallback). Requires **Go 1.26+** and **git**.
+Downloads the latest prebuilt release archive for your OS/architecture, verifies
+its checksum, and installs `skill-dl` to `/usr/local/bin`.
+
+Install a specific release tag:
+
+```bash
+sudo -v ; curl -fsSL https://raw.githubusercontent.com/yigitkonur/cli-skill-downloader/main/install.sh | sudo bash -s -- v1.3.0
+```
 
 ### Manual
 
 ```bash
-git clone https://github.com/yigitkonur/cli-skill-downloader.git
-cd cli-skill-downloader
-go build -o skill-dl ./cmd/skill-dl
-install -m 755 skill-dl /usr/local/bin/skill-dl
+curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/skill-dl_linux_amd64.tar.gz
+curl -LO https://github.com/yigitkonur/cli-skill-downloader/releases/latest/download/checksums.txt
+shasum -a 256 -c checksums.txt --ignore-missing
+tar -xzf skill-dl_linux_amd64.tar.gz
+sudo install -m 755 skill-dl /usr/local/bin/skill-dl
 ```
 
 ### Development build
@@ -43,9 +50,39 @@ go test ./...
 
 | Requirement | Version |
 |-------------|---------|
-| `go` | 1.26+ |
-| `git` | any |
+| `curl` | any |
+| `tar` | any |
+| `sha256sum` or `shasum` | any |
 | macOS or Linux | — |
+
+### Release Assets
+
+The release pipeline publishes stable archive names so the installer can fetch
+them from GitHub's latest-release URLs directly:
+
+- `skill-dl_linux_amd64.tar.gz`
+- `skill-dl_linux_arm64.tar.gz`
+- `skill-dl_darwin_amd64.tar.gz`
+- `skill-dl_darwin_arm64.tar.gz`
+- `checksums.txt`
+
+For local development, the same layout can be generated with:
+
+```bash
+./scripts/build-release-artifacts.sh
+./scripts/verify-release-layout.sh
+```
+
+### Verification
+
+The repo includes both frozen parity fixtures and direct Go-versus-bash
+reference comparison:
+
+```bash
+go test ./...
+./scripts/compare-reference.sh
+./scripts/test-install-local-release.sh
+```
 
 ---
 

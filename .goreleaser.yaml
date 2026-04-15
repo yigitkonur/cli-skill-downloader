@@ -1,0 +1,37 @@
+version: 2
+
+project_name: skill-dl
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: skill-dl
+    main: ./cmd/skill-dl
+    binary: skill-dl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/yigitkonur/cli-skill-downloader/internal/cli.Version={{ .Version }}
+
+archives:
+  - id: tarballs
+    ids:
+      - skill-dl
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: false
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  draft: false
